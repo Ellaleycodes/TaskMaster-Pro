@@ -124,7 +124,7 @@ Unlock achievements by:
 ## 🧑‍💻 Technologies Used
 
 - **HTML5** - Structure
-- **CSS3** - Styling with gradients, animations, and flexbox/grid
+  -**CSS3** - Styling with gradients, animations, and flexbox/grid
 - **Vanilla JavaScript** - All functionality, no frameworks
 - **LocalStorage API** - Data persistence
 - **Web Animations** - Smooth UI transitions
@@ -202,11 +202,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📧 Contact
 
 Immanuella Udofia - ellaudofia792@gmail.com
+LinkedIn:https://www.linkedin.com/in/immanuella-udofia-224327325?utm_source=share&utm_campaign=share_via&utm_content=profile&utm_medium=android_app
 
-Project Link: [https://github.com/your-username/taskmaster-pro](https://github.com/your-username/taskmaster-pro)
+Project Link 🔗https://github.com/Ellaleycodes/TaskMaster-Pro.git
 
 ---
 
-**⭐ If you found this helpful, please give it a star!**
+⭐ If you found this helpful, please give it a star!
 
 Made with ❤️ and ☕ by Ellaleycodes
