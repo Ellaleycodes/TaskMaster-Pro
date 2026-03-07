@@ -44,7 +44,7 @@ Stay motivated with points, streaks, and achievements:
 
 ## 🚀 Demo
 
-**[Live Demo](https://your-username.github.io/taskmaster-pro/)** *(Replace with your actual GitHub Pages URL)
+[Live Demo](https://github.com/Ellaleycodes/TaskMaster-Pro.git)
 
 ## 🛠️ Installation
 
@@ -55,8 +55,7 @@ Stay motivated with points, streaks, and achievements:
 
 ### Option 2: Clone Repository
 ```bash
-git clone https://github.com/your-username/taskmaster-pro.git
-cd taskmaster-pro
+git clone https://github.com/Ellaleycodes/TaskMaster-Pro.git
 # Open index.html in your browser
 ```
 
@@ -64,7 +63,7 @@ cd taskmaster-pro
 1. Fork this repository
 2. Go to Settings → Pages
 3. Select `main` branch as source
-4. Your app will be live at `https://your-username.github.io/taskmaster-pro/`
+4. Your app will be live at https://github.com/Ellaleycodes/TaskMaster-Pro.git
 
 ## 📖 How to Use
 
