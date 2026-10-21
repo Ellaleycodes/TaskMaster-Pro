@@ -14,6 +14,9 @@ let timeRemaining = 25 * 60; // 25 minutes in seconds
 let isRunning = false;
 let isBreak = false;
 
+// Reminders / Notifications
+let reminderCheckInterval = null;
+
 // Achievements
 const achievements = [
     { id: 'first-task', name: 'First Step', description: 'Complete your first task', icon: '🎯', condition: () => stats.totalCompleted >= 1 },
@@ -31,6 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAchievements();
     setupEventListeners();
     checkStreak();
+    updateNotificationButton();
+    startReminderChecker();
 });
 
 function setupEventListeners() {
@@ -46,6 +51,12 @@ function setupEventListeners() {
     document.getElementById('startTimer').addEventListener('click', startTimer);
     document.getElementById('pauseTimer').addEventListener('click', pauseTimer);
     document.getElementById('resetTimer').addEventListener('click', resetTimer);
+
+    // Notifications
+    const notifyBtn = document.getElementById('enableNotifications');
+    if (notifyBtn) {
+        notifyBtn.addEventListener('click', requestNotificationPermission);
+    }
 }
 
 function addTask(e) {
@@ -59,6 +70,8 @@ function addTask(e) {
         urgency: document.getElementById('taskUrgency').value,
         deadline: document.getElementById('taskDeadline').value,
         estimate: parseInt(document.getElementById('taskEstimate').value) || 0,
+        reminderMinutes: parseInt(document.getElementById('taskReminder').value) || 0,
+        reminded: false,
         completed: false,
         createdAt: new Date().toISOString()
     };
@@ -81,11 +94,11 @@ function toggleTask(id) {
         if (task.importance === 'important') points += 5;
         if (task.urgency === 'urgent') points += 5;
         if (task.estimate) points += Math.floor(task.estimate / 10);
-        
+
         stats.points += points;
         stats.completedToday += 1;
         stats.totalCompleted += 1;
-        
+
         updateStreak();
     } else {
         stats.completedToday = Math.max(0, stats.completedToday - 1);
@@ -108,7 +121,7 @@ function deleteTask(id) {
 
 function renderTasks() {
     const currentView = document.querySelector('.view-section.active').id;
-    
+
     if (currentView === 'listView') {
         renderListView();
     } else {
@@ -118,7 +131,7 @@ function renderTasks() {
 
 function renderListView() {
     const taskList = document.getElementById('taskList');
-    
+
     if (tasks.length === 0) {
         taskList.innerHTML = `
             <div class="empty-state">
@@ -163,6 +176,7 @@ function renderMatrixView() {
 function createTaskHTML(task) {
     const isOverdue = task.deadline && new Date(task.deadline) < new Date() && !task.completed;
     const deadlineText = task.deadline ? new Date(task.deadline).toLocaleString() : 'No deadline';
+    const reminderText = task.deadline && task.reminderMinutes ? `🔔 ${reminderLabel(task.reminderMinutes)} before` : '';
 
     return `
         <li class="task-item ${task.completed ? 'completed' : ''} ${isOverdue ? 'overdue' : ''}">
@@ -177,6 +191,7 @@ function createTaskHTML(task) {
             ${task.description ? `<div class="task-description">${task.description}</div>` : ''}
             <div class="task-meta">
                 <span>📅 ${deadlineText}</span>
+                ${reminderText ? `<span>${reminderText}</span>` : ''}
                 ${isOverdue ? '<span style="color: #dc3545;">⚠️ Overdue</span>' : ''}
             </div>
             <div class="task-actions">
@@ -189,11 +204,17 @@ function createTaskHTML(task) {
     `;
 }
 
+function reminderLabel(minutes) {
+    if (minutes >= 1440) return `${minutes / 1440}d`;
+    if (minutes >= 60) return `${minutes / 60}h`;
+    return `${minutes}min`;
+}
+
 function updateStats() {
     document.getElementById('totalPoints').textContent = stats.points;
     document.getElementById('currentStreak').textContent = stats.streak;
     document.getElementById('completedToday').textContent = stats.completedToday;
-    
+
     const totalTime = tasks.reduce((sum, task) => sum + (task.estimate || 0), 0);
     const hours = Math.floor(totalTime / 60);
     const minutes = totalTime % 60;
@@ -242,7 +263,7 @@ function checkStreak() {
 
 function updateAchievements() {
     const achievementsList = document.getElementById('achievementsList');
-    
+
     achievementsList.innerHTML = achievements.map(achievement => {
         const unlocked = achievement.condition();
         return `
@@ -314,7 +335,7 @@ function updateTimer() {
 
         if (!isBreak) {
             // Pomodoro complete, start break
-            alert('🎉 Pomodoro complete! Time for a 5-minute break.');
+            notifyUser('🍅 Pomodoro complete!', 'Nice work. Time for a 5-minute break.');
             stats.points += 25;
             saveStats();
             updateStats();
@@ -323,7 +344,7 @@ function updateTimer() {
             document.getElementById('timerStatus').textContent = 'Break time!';
         } else {
             // Break complete
-            alert('⏰ Break is over! Ready for another pomodoro?');
+            notifyUser('⏰ Break is over', 'Ready for another pomodoro?');
             timeRemaining = 25 * 60;
             isBreak = false;
             document.getElementById('timerStatus').textContent = 'Ready to focus';
@@ -336,8 +357,96 @@ function updateTimer() {
 function updateTimerDisplay() {
     const minutes = Math.floor(timeRemaining / 60);
     const seconds = timeRemaining % 60;
-    document.getElementById('timerDisplay').textContent = 
+    document.getElementById('timerDisplay').textContent =
         `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+// ===== REMINDERS / NOTIFICATIONS =====
+
+function requestNotificationPermission() {
+    if (!('Notification' in window)) {
+        alert('Sorry, this browser does not support notifications.');
+        return;
+    }
+
+    Notification.requestPermission().then(permission => {
+        updateNotificationButton();
+        if (permission === 'granted') {
+            notifyUser('🔔 Reminders enabled', "You'll get a notification before each task's deadline.");
+        }
+    });
+}
+
+function updateNotificationButton() {
+    const btn = document.getElementById('enableNotifications');
+    if (!btn) return;
+
+    if (!('Notification' in window)) {
+        btn.textContent = '🔕 Notifications not supported';
+        btn.disabled = true;
+        return;
+    }
+
+    if (Notification.permission === 'granted') {
+        btn.textContent = '🔔 Reminders enabled';
+        btn.disabled = true;
+    } else if (Notification.permission === 'denied') {
+        btn.textContent = '🔕 Notifications blocked (check browser settings)';
+        btn.disabled = true;
+    } else {
+        btn.textContent = '🔔 Enable Reminders';
+        btn.disabled = false;
+    }
+}
+
+function notifyUser(title, body) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+    try {
+        const n = new Notification(title, {
+            body,
+            icon: '🎯',
+            tag: title // avoids piling up duplicate notifications
+        });
+        // Auto-close after 10s so they don't stack up
+        setTimeout(() => n.close(), 10000);
+    } catch (err) {
+        // Some mobile browsers only allow notifications via a Service Worker.
+        // Falling back silently is fine here — the in-app reminder still works.
+        console.warn('Notification failed:', err);
+    }
+}
+
+function startReminderChecker() {
+    // Check every 30 seconds for tasks whose reminder time has arrived
+    if (reminderCheckInterval) clearInterval(reminderCheckInterval);
+    reminderCheckInterval = setInterval(checkReminders, 30000);
+    checkReminders(); // also run once immediately
+}
+
+function checkReminders() {
+    if (Notification && Notification.permission !== 'granted') return;
+
+    const now = new Date();
+    let changed = false;
+
+    tasks.forEach(task => {
+        if (task.completed || task.reminded || !task.deadline || !task.reminderMinutes) return;
+
+        const deadline = new Date(task.deadline);
+        const remindAt = new Date(deadline.getTime() - task.reminderMinutes * 60000);
+
+        if (now >= remindAt && now < deadline) {
+            notifyUser(
+                `⏰ Upcoming: ${task.title}`,
+                `Due ${deadline.toLocaleString()} — ${reminderLabel(task.reminderMinutes)} to go.`
+            );
+            task.reminded = true;
+            changed = true;
+        }
+    });
+
+    if (changed) saveTasks();
 }
 
 // Storage Functions
@@ -347,5 +456,5 @@ function saveTasks() {
 
 function saveStats() {
     localStorage.setItem('stats', JSON.stringify(stats));
-                           }
-                                                                    
+                                       }
+        
